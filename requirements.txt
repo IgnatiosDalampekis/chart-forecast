@@ -1,0 +1,19 @@
+# Computer vision
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+scikit-image==0.26.0
+scipy==1.18.1
+
+# OCR + text parsing
+easyocr==1.7.2
+dateparser==1.4.3
+
+# Calibration, forecasting, validation
+scikit-learn==1.9.1
+pandas==3.1.0
+statsmodels==0.15.0
+
+# Synthetic charts, UI, tests
+matplotlib==3.11.2
+streamlit==1.66.1
+pytest==9.1.1

@@ -1,0 +1,11 @@
+[project]
+name = "chartcast"
+version = "0.1.0"
+description = "Extract time series from chart images and forecast them with rolling-origin error estimates."
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["ocr: end-to-end tests that need the EasyOCR models (deselect with -m 'not ocr')"]
+filterwarnings = ["ignore::UserWarning:torch.*"]
