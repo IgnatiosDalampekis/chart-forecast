@@ -67,6 +67,8 @@ def accuracy_check(series: pd.Series, truth_file: Path) -> tuple[np.ndarray, flo
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1), ncol=2, frameon=False)  # above the plot, off the lines
     ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=9))
     ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+    if t.get("log"):  # same scale as the chart, so both lines stay comparable over all decades
+        ax.set_yscale("log")
     ax.spines[["top", "right"]].set_visible(False)
     fig.tight_layout()
     return to_rgb(fig), err
@@ -369,10 +371,20 @@ st.caption(f"Rolling validation: {len(best.origins)} folds, {plural(s_amount, s_
            f"{plural(w_amount, w_unit)} before a point in the past, forecasts the next {plural(h_amount, h_unit)}, "
            f"and is compared with what the chart shows. P(incorrect) = share of folds missing by more than "
            f"{tolerance:.0%} (95% Wilson interval).")
+# Values shown to a precision that suits their size (196.73, 23.452, 1500.3); probabilities as percentages.
+scale = float(np.nanmax(np.abs(s.values))) or 1.0
+decimals = int(np.clip(4 - np.floor(np.log10(scale)), 0, 4))
 st.dataframe(pd.DataFrame({
-    "time": [when(t) for t in fc.index], "forecast": fc.values.round(4),
-    "P(incorrect)": report.p_incorrect.round(3), "CI low": report.ci_low.round(3), "CI high": report.ci_high.round(3),
+    "time": [when(t) for t in fc.index],
+    "forecast": [f"{v:.{decimals}f}" for v in fc.values],
+    "P(incorrect)": [f"{p:.0%}" for p in report.p_incorrect],
+    "95% interval": [f"{lo:.0%} – {hi:.0%}" for lo, hi in zip(report.ci_low, report.ci_high)],
 }), hide_index=True, width="stretch")
+forecast_csv = pd.DataFrame({
+    "time": fc.index, "forecast": fc.values.round(decimals + 2),
+    "p_incorrect": report.p_incorrect.round(4), "ci_low": report.ci_low.round(4), "ci_high": report.ci_high.round(4),
+}).to_csv(index=False).encode()
+st.download_button("Download forecast CSV", forecast_csv, "forecast.csv", "text/csv")
 if len(results) > 1:
     st.subheader("Models compared in validation")
     st.caption(f"Each model was validated the same way. **Mean error baseline:** its average relative error over all "
