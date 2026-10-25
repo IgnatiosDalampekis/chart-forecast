@@ -14,6 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import pandas as pd
 
@@ -23,6 +24,8 @@ KINDS = {
     "stock": dict(freq="D", n=250, period=None, unit="USD", title="Daily closing price", fmt="%b %Y"),
     "temperature": dict(freq="D", n=730, period=365, unit="°C", title="Daily mean temperature", fmt="%b %Y"),
     "traffic": dict(freq="W", n=156, period=52, unit="Visits", title="Weekly website visits", fmt="%b %Y"),
+    "growth": dict(freq="MS", n=180, period=None, unit="USD", title="Long-term growth", fmt="%Y",
+                   log=True),
 }
 COLORS = ["#1f77b4", "#d62728", "#2ca02c", "#ff7f0e", "#9467bd", "#000000"]
 
@@ -33,6 +36,8 @@ def make_series(kind: str, rng: np.random.Generator) -> pd.Series:
     t = np.arange(n)
     if kind == "stock":
         y = rng.uniform(20, 300) * np.exp(np.cumsum(rng.normal(0.0005, 0.015, n)))
+    elif kind == "growth":  # exponential growth over decades: ~3 -> ~10,000, shown on a log axis
+        y = rng.uniform(2, 5) * np.exp(np.cumsum(rng.normal(0.045, 0.06, n)))
     elif kind == "temperature":
         y = 15 + 10 * np.sin(2 * np.pi * (t - 100) / period) + rng.normal(0, 1.5, n)
     else:
@@ -71,6 +76,10 @@ def make_chart(kind: str, seed: int, out: Path) -> Path:
         ax.plot(series.index, series.values, color=style["color"], lw=style["linewidth"])
         ax.set_title(KINDS[kind]["title"])
         ax.set_ylabel(KINDS[kind]["unit"])
+        if KINDS[kind].get("log"):  # log value axis with plain labels: 10, 100, 1000, …
+            ax.set_yscale("log")
+            ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+            ax.yaxis.set_minor_formatter(mticker.NullFormatter())
         ax.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=8))
         ax.xaxis.set_major_formatter(mdates.DateFormatter(KINDS[kind]["fmt"]))
         if style["grid"]:
@@ -92,7 +101,7 @@ def make_chart(kind: str, seed: int, out: Path) -> Path:
         plt.close(fig)
 
     truth = dict(
-        kind=kind, freq=KINDS[kind]["freq"], period=KINDS[kind]["period"],
+        kind=kind, freq=KINDS[kind]["freq"], period=KINDS[kind]["period"], log=bool(KINDS[kind].get("log")),
         unit=KINDS[kind]["unit"], title=KINDS[kind]["title"],
         plot_box=box, ylim=list(ax.get_ylim()), xlim=xlim, style=style,
         timestamps=[t.isoformat() for t in series.index], values=series.round(4).tolist(),
