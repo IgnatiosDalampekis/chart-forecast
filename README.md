@@ -1,7 +1,7 @@
 # chartcast
 
-Turn a picture of a time series chart back into data, forecast it, and estimate how likely the forecast is to be
-wrong.
+Turn a picture of a time series chart back into data, forecast it, and compute, with rolling forecast validation, a
+mean error baseline and the probability that the forecast is incorrect.
 
 You give it a screenshot of a line chart (a stock price, energy load, sales, anything with a value axis and a time
 axis). It reads the axes with OCR, traces the line, rebuilds the series, and runs a rolling validation on the
@@ -22,8 +22,6 @@ https://github.com/user-attachments/assets/b484aa4d-377a-4872-99fc-83c9dffa4382
 ### Silent walkthrough (2:41, with captions)
 
 The same flow without sound, from upload to forecast, with on-screen captions describing each step and the results.
-It uses the default forecast settings (ARIMA chosen, 2.8% mean error baseline, P(incorrect) rising from 0% to 30%
-over a one-week horizon).
 
 https://github.com/user-attachments/assets/b7e904fc-d997-4684-bb16-d59e0ef44b70
 
@@ -50,7 +48,7 @@ buttons, tables, side panels) is ignored and only the time series is kept:
 
 The test charts live in `samples/` and appear in the app's sample gallery:
 
-- `samples/real/`: real chart screenshots (stock and index charts, daily, weekly and intraday, plot-only and full
+- `samples/real/`: real chart screenshots (stock and index charts, daily, intraday and multi-year, plot-only and full
   web pages).
 - `samples/synthetic/`: generated charts (energy, sales, stock price, temperature, website visits, long-term growth
   on a log scale). Each image has a `.json` file next to it with the true data it was drawn from, which the app uses
@@ -182,7 +180,5 @@ New synthetic charts can be generated with `python -m chartcast.synth --n 6 --ou
 
 - Line charts only; no bars, candlesticks or overlapping lines of the same colour.
 - The chart needs readable tick labels on both axes.
-- Smooth monthly data is sometimes read as weekly.
-- Labels without a year (`Jan 05`) or with clock times only get a placeholder date.
 - The relative error is unstable for values close to zero.
 - Validation runs overlap, so the intervals on P(incorrect) are somewhat optimistic.
