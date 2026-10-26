@@ -11,7 +11,8 @@ from chartcast.calibrate import calibrate_time, calibrate_values, finest_frequen
 from chartcast.config import SETTINGS as S
 from chartcast.forecast import check_window, fold_origins, rolling_backtest, select_and_forecast, to_steps
 from chartcast.ocr import TextBox, clean_numeric, merge_words
-from chartcast.parse import parse_date, parse_number, unwrap
+from chartcast.parse import grouped_thousands, parse_date, parse_number, unwrap
+from chartcast.pipeline import _with_year
 from chartcast.preprocess import load, prepare
 from chartcast.trace import point_spacing, seasonal_period, skeleton, trace
 from chartcast.uncertainty import error_report
@@ -44,6 +45,23 @@ def test_prepare_inverts_dark_and_upscales():
 ])
 def test_parse_number(text, value):
     assert parse_number(text) == value
+
+
+@pytest.mark.parametrize("labels, thousands", [
+    (["0", "2.000", "4.000", "6.000"], True), (["2.000", "4.000", "6.000"], True), (["0", "2,000", "4,000"], True),
+    (["1.250", "1.375", "1.500"], False), (["0", "0.5", "1.0"], False), (["10", "20", "30"], False),
+    (["0", "1.5", "3.000"], False),
+])
+def test_grouped_thousands(labels, thousands):
+    assert grouped_thousands(labels) == thousands
+
+
+def test_year_from_a_full_date_on_the_image():
+    s = pd.Series([1.0, 2.0], index=pd.to_datetime(["2000-09-30", "2000-10-23"]))
+    labels = [tb("30 Sep", 100, 500)]
+    assert _with_year(s, labels + [tb("Oct 23, 2026", 100, 50)], labels).index[0] == pd.Timestamp("2026-09-30")
+    assert _with_year(s, labels + [tb("Jan 5, 2027", 100, 50)], labels).index[0] == pd.Timestamp("2026-09-30")
+    assert _with_year(s, labels + [tb("Oct 23", 100, 50)], labels).index[0].year == 2000  # no year anywhere
 
 
 @pytest.mark.parametrize("text, expected, unit", [

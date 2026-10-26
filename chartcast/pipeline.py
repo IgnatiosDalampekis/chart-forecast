@@ -12,7 +12,7 @@ from .config import SETTINGS
 from .errors import ChartError
 from .line import isolate_lines
 from .ocr import NUMBER_CHARS, TextBox, read_text, reread
-from .parse import parse_date, parse_number
+from .parse import PLACEHOLDER_YEAR, parse_date, parse_number
 from .preprocess import Prepared, load, prepare
 from .trace import infer_frequency, seasonal_period, skeleton, to_series, trace
 
@@ -62,6 +62,21 @@ def _decode(image) -> np.ndarray:
     return load(image)
 
 
+def _with_year(series: pd.Series, texts: list[TextBox], labels: list[TextBox]) -> pd.Series:
+    """Time labels without a year ('30 Sep') get a placeholder year. If another text on the image is
+    a full date ('Oct 23, 2026'), the chart is taken to end on or before the latest such date."""
+    own = {id(t) for t in labels}
+    dated = [p.dt for t in texts if id(t) not in own and (p := parse_date(t.text)) is not None
+             and p.wrap is None and p.unit in ("day", "month") and p.dt.year != PLACEHOLDER_YEAR]
+    if not dated:
+        return series
+    ref, last = pd.Timestamp(max(dated)).tz_convert(None), series.index[-1]
+    years = ref.year - last.year
+    if last + pd.DateOffset(years=years) > ref + pd.Timedelta(days=1):  # e.g. a December chart dated January
+        years -= 1
+    return series.set_axis(series.index + pd.DateOffset(years=years))
+
+
 def extract(image) -> Extraction:
     """Stages 1–7 on a path, encoded image bytes or a BGR array.
 
@@ -108,6 +123,8 @@ def extract(image) -> Extraction:
     freq, how = infer_frequency(px, py, xmap, finest_frequency(ta.units), prep.scale)
     conf["frequency_source"] = how
     series = to_series(px, py, xmap, ymap, freq)
+    if series.index[0].year == PLACEHOLDER_YEAR:
+        series = _with_year(series, texts, ta.labels)
     if len(series) < s.min_samples:
         raise ChartError(errors.TOO_FEW.format(n=len(series)))
     return Extraction(series, area, texts, freq, seasonal_period(series), conf, prep, px, py, len(masks))

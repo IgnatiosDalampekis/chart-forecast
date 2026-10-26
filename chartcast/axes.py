@@ -4,6 +4,7 @@ straight line when the chart draws one, and derive the plot box.
 Text first: every readable chart has a column of numbers increasing upwards and a row of dates
 increasing to the right, wherever they are and whether or not axis lines are drawn.
 """
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -15,7 +16,7 @@ from . import errors
 from .config import Settings
 from .errors import ChartError
 from .ocr import Box, TextBox
-from .parse import parse_date, parse_number, unwrap
+from .parse import grouped_thousands, parse_date, parse_number, unwrap
 from .preprocess import Prepared
 
 
@@ -233,6 +234,8 @@ def find_value_axis(texts: list[TextBox], V: list[Line], h: float, s: Settings) 
             scale = _on_one_scale([c[0].center[1] for c in g], [c[1] for c in g], [c[0].conf for c in g])
             g = [(g[i][0], val, fixed) for i, val, fixed in scale]
             g = [g[i] for i in _longest_increasing([c[1] for c in g])]      # values increase upwards
+            if grouped_thousands([c[0].text for c in g]):                  # '0, 2.000, 4.000' = 0, 2000, 4000
+                g = [(t, float(re.sub(r"[.,]", "", t.text.strip())), fixed) for t, _, fixed in g]
             ids = frozenset(id(c[0]) for c in g)
             if len(g) >= 2 and ids not in seen:
                 seen.add(ids)

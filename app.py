@@ -21,6 +21,7 @@ from matplotlib.figure import Figure
 from chartcast.calibrate import FREQS
 from chartcast.errors import ChartError
 from chartcast.ocr import ocr_ready, warm_up
+from chartcast.parse import PLACEHOLDER_YEAR
 from chartcast.forecast import MAX_FOLDS, MODELS, UNITS, check_window, fold_origins, select_and_forecast, to_steps
 from chartcast.pipeline import extract, overlay, reconstruct
 from chartcast.uncertainty import error_report
@@ -55,8 +56,9 @@ def accuracy_check(series: pd.Series, truth_file: Path) -> tuple[np.ndarray, flo
     t = json.loads(truth_file.read_text())
     truth = pd.Series(t["values"], index=pd.to_datetime(t["timestamps"]))
     ext = series.copy()
-    if ext.index[0].year == 2000 and truth.index[0].year != 2000:  # labels had no year: use the true one
-        ext.index = ext.index.map(lambda d: d.replace(year=d.year + truth.index[0].year - 2000))
+    # labels had no year: use the true one
+    if ext.index[0].year == PLACEHOLDER_YEAR and truth.index[0].year != PLACEHOLDER_YEAR:
+        ext.index = ext.index.map(lambda d: d.replace(year=d.year + truth.index[0].year - PLACEHOLDER_YEAR))
     secs = lambda idx: (idx - pd.Timestamp(0)).total_seconds().to_numpy()
     expected = np.interp(secs(ext.index), secs(truth.index), truth.to_numpy())
     err = float(np.mean(np.abs(ext.to_numpy() - expected)) / (truth.max() - truth.min()))
@@ -102,7 +104,7 @@ def possible_units(freq: str) -> list[str]:
 def time_format(index: pd.DatetimeIndex, freq: str) -> str:
     """How timestamps of this chart are shown. Fields the labels did not give are left out:
     clock-time-only labels (one day) show just the time, labels without a year show no year."""
-    placeholder = index[0].year == 2000  # parse.py's placeholder for labels without a year
+    placeholder = index[0].year == PLACEHOLDER_YEAR  # labels without a year
     if freq in INTRADAY:
         if placeholder and index[-1].normalize() == index[0].normalize():
             return "%H:%M"
@@ -269,7 +271,8 @@ with st.expander("Extraction details / Download CSV"):
     st.markdown(f"<details><summary><b>Details</b></summary><pre>"
                 f"{html.escape(json.dumps(ex.confidence, indent=2, ensure_ascii=False))}</pre></details>",
                 unsafe_allow_html=True)
-    st.download_button("Download extracted CSV", s.to_csv().encode(), "extracted.csv", "text/csv")
+    st.download_button("Download extracted CSV", s.set_axis(s.index.map(when)).rename_axis("time").to_csv().encode(),
+                       "extracted.csv", "text/csv")
 
 st.header("2. Graph overview")
 step = FREQS[ex.freq]
@@ -381,7 +384,7 @@ st.dataframe(pd.DataFrame({
     "95% interval": [f"{lo:.0%} – {hi:.0%}" for lo, hi in zip(report.ci_low, report.ci_high)],
 }), hide_index=True, width="stretch")
 forecast_csv = pd.DataFrame({
-    "time": fc.index, "forecast": fc.values.round(decimals + 2),
+    "time": [when(t) for t in fc.index], "forecast": fc.values.round(decimals + 2),
     "p_incorrect": report.p_incorrect.round(4), "ci_low": report.ci_low.round(4), "ci_high": report.ci_high.round(4),
 }).to_csv(index=False).encode()
 st.download_button("Download forecast CSV", forecast_csv, "forecast.csv", "text/csv")

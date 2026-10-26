@@ -64,6 +64,25 @@ def parse_number(text: str) -> float | None:
         return None
 
 
+_GROUPED = re.compile(r"[+-]?[1-9]\d{0,2}(?:[.,]\d{3})+")   # 2.000, 12,500, 1.250.000
+_INTEGER = re.compile(r"[+-]?\d+")
+
+
+def grouped_thousands(texts: list[str]) -> bool:
+    """True when the labels of one axis only make sense with the separator grouping thousands.
+
+    A tick formatter prints every label of an axis with the same number of decimals, and no more
+    than the step needs. So labels with exactly three digits after each separator ('2.000') mean
+    2,000, not 2.0, when they sit next to plain integers ('0', which would have been '0.000') or
+    when every one of them ends in a zero the step does not need ('2.000, 4.000').
+    """
+    t = [s.strip() for s in texts]
+    grouped = [s for s in t if _GROUPED.fullmatch(s)]
+    if not grouped or not all(_GROUPED.fullmatch(s) or _INTEGER.fullmatch(s) for s in t):
+        return False
+    return len(grouped) < len(t) or all(s.endswith("0") for s in grouped)
+
+
 # --------------------------------------------------------------------------- dates and times
 
 @dataclass
@@ -76,7 +95,7 @@ class ParsedTime:
 _MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august",
            "september", "october", "november", "december"]
 _WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-_PLACEHOLDER_YEAR = 2000  # leap year, so 29 Feb is valid
+PLACEHOLDER_YEAR = 2000  # leap year, so 29 Feb is valid
 
 
 def _name_index(token: str, names: list[str]) -> int | None:
@@ -136,22 +155,22 @@ def _build_patterns():
     def md(m):
         a, b = int(m[1]), int(m[2])
         d, mo = (a, b) if a > 12 else (b, a)
-        return ParsedTime(_utc(_PLACEHOLDER_YEAR, mo, d), "day", "year")
+        return ParsedTime(_utc(PLACEHOLDER_YEAR, mo, d), "day", "year")
 
     def time_only(m):
         h, mi, s, unit = hms(m, 1)
-        return ParsedTime(_utc(_PLACEHOLDER_YEAR, 1, 1, h, mi, s), unit, "day")
+        return ParsedTime(_utc(PLACEHOLDER_YEAR, 1, 1, h, mi, s), unit, "day")
 
     def quarter(q, y):
-        return ParsedTime(_utc(_year(y) if y else _PLACEHOLDER_YEAR, 3 * int(q) - 2, 1), "quarter",
+        return ParsedTime(_utc(_year(y) if y else PLACEHOLDER_YEAR, 3 * int(q) - 2, 1), "quarter",
                           None if y else "year")
 
     def half(hf, y):
-        return ParsedTime(_utc(_year(y) if y else _PLACEHOLDER_YEAR, 6 * int(hf) - 5, 1), "quarter",
+        return ParsedTime(_utc(_year(y) if y else PLACEHOLDER_YEAR, 6 * int(hf) - 5, 1), "quarter",
                           None if y else "year")
 
     def week(w, y):
-        d = date.fromisocalendar(_year(y) if y else _PLACEHOLDER_YEAR, int(w), 1)
+        d = date.fromisocalendar(_year(y) if y else PLACEHOLDER_YEAR, int(w), 1)
         return ParsedTime(_utc(d.year, d.month, d.day), "week", None if y else "year")
 
     add(r"(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})[ t]" + _TIME, iso_dt)                       # 2024-01-05 14:00
@@ -161,8 +180,8 @@ def _build_patterns():
     add(r"(\d{1,2})/(\d{1,2})", md)                                                       # 1/5
     add(_TIME, time_only)                                                                 # 14:00, 2:30 pm
     add(_TIME_DOT, time_only)                                                             # 12.00 p.m. (OCR)
-    add(r"(\d{1,2}) ?([ap])\.?m\.?", lambda m: ParsedTime(_utc(_PLACEHOLDER_YEAR, 1, 1, _hour(int(m[1]), m[2])), "hour", "day"))
-    add(r"(\d{1,2})h", lambda m: ParsedTime(_utc(_PLACEHOLDER_YEAR, 1, 1, int(m[1])), "hour", "day"))  # 14h
+    add(r"(\d{1,2}) ?([ap])\.?m\.?", lambda m: ParsedTime(_utc(PLACEHOLDER_YEAR, 1, 1, _hour(int(m[1]), m[2])), "hour", "day"))
+    add(r"(\d{1,2})h", lambda m: ParsedTime(_utc(PLACEHOLDER_YEAR, 1, 1, int(m[1])), "hour", "day"))  # 14h
     add(r"q([1-4])(?:[ '-]*(\d{4}|\d{2}))?", lambda m: quarter(m[1], m[2]))               # Q1, Q1 2024, Q1 '24
     add(r"(\d{4})[ -]?q([1-4])", lambda m: quarter(m[2], m[1]))                           # 2024Q1
     add(r"h([12])(?:[ '-]*(\d{4}|\d{2}))?", lambda m: half(m[1], m[2]))                   # H1 2024
@@ -207,11 +226,11 @@ def _free_form(t: str) -> ParsedTime | None:
             return None
     try:
         if month is not None:
-            dt = _utc(year or _PLACEHOLDER_YEAR, month, day or 1, h, mi, s)
+            dt = _utc(year or PLACEHOLDER_YEAR, month, day or 1, h, mi, s)
             unit = unit_time or ("day" if day else "month")
             return ParsedTime(dt, unit, None if year else "year")
         if weekday is not None and day is None and year is None:
-            dt = _utc(_PLACEHOLDER_YEAR, 1, 3, h, mi, s) + timedelta(days=weekday)  # 3 Jan 2000 = Monday
+            dt = _utc(PLACEHOLDER_YEAR, 1, 3, h, mi, s) + timedelta(days=weekday)  # 3 Jan 2000 = Monday
             return ParsedTime(dt, unit_time or "day", "week")
     except ValueError:  # e.g. 31 Feb
         return None
