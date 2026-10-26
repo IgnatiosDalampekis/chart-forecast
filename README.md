@@ -9,25 +9,25 @@ chart's own history to measure how well each forecasting model would have done.
 
 ## Demo
 
-Two recordings of the app running locally on the same chart, one narrated and one silent with captions. Click a
-picture to play the video.
+Two recordings of the app running locally on the same chart: a narrated presentation and a silent walkthrough with
+captions. Both play directly on this page.
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <a href="demo/presentation.mp4"><img src="demo/presentation.jpg" alt="Presentation demo"></a>
-      <p><b>Presentation (5:11, with narration).</b> I walk through the app step by step and explain what it does,
-      from uploading a chart and checking its reconstruction to the forecast, the mean error baseline and the
-      probability that the forecast is incorrect.</p>
-    </td>
-    <td width="50%" valign="top">
-      <a href="demo/silent.mp4"><img src="demo/silent.jpg" alt="Silent demo"></a>
-      <p><b>Silent walkthrough (2:41, with captions).</b> The same flow without sound, from upload to forecast, with
-      on-screen captions describing each step and the results, using the default forecast settings (ARIMA chosen, 2.8% mean error baseline, P(incorrect)
-      rising from 0% to 30% over a one-week horizon).</p>
-    </td>
-  </tr>
-</table>
+### Presentation (5:11, with narration)
+
+I walk through the app step by step and explain what it does, from uploading a chart and checking its reconstruction
+to the forecast, the mean error baseline and the probability that the forecast is incorrect.
+
+https://github.com/user-attachments/assets/b484aa4d-377a-4872-99fc-83c9dffa4382
+
+### Silent walkthrough (2:41, with captions)
+
+The same flow without sound, from upload to forecast, with on-screen captions describing each step and the results.
+It uses the default forecast settings (ARIMA chosen, 2.8% mean error baseline, P(incorrect) rising from 0% to 30%
+over a one-week horizon).
+
+https://github.com/user-attachments/assets/b7e904fc-d997-4684-bb16-d59e0ef44b70
+
+Both videos are also in [`demo/`](demo) for download.
 
 ## What it reads
 
